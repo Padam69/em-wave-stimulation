@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EM Wave Propagation - Final</title>
+    <style>
+        :root {
+            --primary: #d97757; /* Claude Orange */
+            --secondary: #374151; /* Charcoal */
+            --bg: #fcfbfa;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        .container { max-width: 1100px; width: 100%; }
+
+        header { text-align: center; margin-bottom: 40px; }
+        h1 { font-size: 2.5rem; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 10px; color: var(--text); }
+        p.subtitle { color: var(--text-light); font-size: 1.1rem; max-width: 600px; margin: 0 auto; }
+
+        .visualization-card {
+            background: var(--card-bg); border-radius: 20px;
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
+            border: 1px solid var(--border); padding: 30px; margin-bottom: 30px; position: relative;
+        }
+
+        canvas { width: 100%; height: 450px; display: block; border-radius: 12px; background: #fafafa; cursor: crosshair; }
+
+        .legend { display: flex; justify-content: center; gap: 30px; margin-top: 20px; font-size: 0.9rem; font-weight: 600; color: var(--text-light); }
+        .legend-item { display: flex; align-items: center; gap: 8px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot.e { background: var(--primary); }
+        .dot.b { background: var(--secondary); }
+        .dot.k { background: #d1d5db; }
+
+        .controls-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;
+            background: var(--card-bg); padding: 25px; border-radius: 16px;
+            border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+
+        .control-group { display: flex; flex-direction: column; gap: 10px; }
+        .label-row { display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-light); }
+        .val-display { color: var(--primary); font-family: monospace; font-size: 0.9rem; }
+
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: var(--primary); cursor: pointer; margin-top: -7px;
+            box-shadow: 0 2px 6px rgba(217, 119, 87, 0.4); transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #e5e7eb; border-radius: 2px; }
+
+        .actions { display: flex; justify-content: center; gap: 15px; margin-top: 30px; }
+        button { padding: 10px 24px; border-radius: 8px; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; border: none; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #c46747; transform: translateY(-1px); }
+        .btn-secondary { background: #f3f4f6; color: var(--text); }
+        .btn-secondary:hover { background: #e5e7eb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Electromagnetic Wave</h1>
+            <p class="subtitle">Interactive visualization of orthogonal E and B fields propagating through space.</p >
+        </header>
+
+        <div class="visualization-card">
+            <canvas id="simCanvas"></canvas>
+            <div class="legend">
+                <div class="legend-item"><div class="dot e"></div> Electric Field (E)</div>
+                <div class="legend-item"><div class="dot b"></div> Magnetic Field (B)</div>
+                <div class="legend-item"><div class="dot k"></div> Propagation (k)</div>
+            </div>
+        </div>
+
+        <div class="controls-grid">
+            <!-- UPDATED DEFAULTS HERE -->
+            <div class="control-group">
+                <div class="label-row"><label>Frequency</label><span class="val-display" id="freqVal">0.5 Hz</span></div>
+                <input type="range" id="freq" min="0.1" max="3.0" step="0.1" value="0.5">
+            </div>
+
+            <div class="control-group">
+                <div class="label-row"><label>Amplitude</label><span class="val-display" id="ampVal">1.0</span></div>
+                <input type="range" id="amp" min="0.5" max="2.0" step="0.1" value="1.0">
+            </div>
+
+            <div class="control-group">
+                <div class="label-row"><label>Wavelength</label><span class="val-display" id="lambdaVal">3.0 m</span></div>
+                <input type="range" id="lambda" min="2.0" max="10.0" step="0.5" value="3.0">
+            </div>
+
+            <div class="control-group">
+                <div class="label-row"><label>Speed</label><span class="val-display" id="speedVal">0.5 c</span></div>
+                <input type="range" id="speed" min="0.1" max="2.0" step="0.1" value="0.5">
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn-primary" id="playBtn">▶ Play</button>
+            <button class="btn-secondary" id="pauseBtn"> Pause</button>
+            <button class="btn-secondary" id="resetBtn"> Reset</button>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    function resize() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+        draw();
+    }
+    window.addEventListener('resize', resize);
+
+    // UPDATED JS DEFAULTS TO MATCH SLIDERS
+    let params = { f: 0.5, a: 1.0, l: 3.0, v: 0.5 }; 
+    let time = 0;
+    let isPlaying = true;
+    let animationId;
+
+    const C_E = '#d97757';
+    const C_B = '#374151';
+    const C_AXIS = '#e5e7eb';
+
+    function draw() {
+        const w = canvas.width / (window.devicePixelRatio || 1);
+        const h = canvas.height / (window.devicePixelRatio || 1);
+        const cy = h / 2;
+        
+        ctx.clearRect(0, 0, w, h);
+
+        // Axis
+        ctx.beginPath();
+        ctx.strokeStyle = C_AXIS;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 5]);
+        ctx.moveTo(40, cy);
+        ctx.lineTo(w - 40, cy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = C_AXIS;
+        ctx.beginPath();
+        ctx.moveTo(w - 35, cy);
+        ctx.lineTo(w - 45, cy - 4);
+        ctx.lineTo(w - 45, cy + 4);
+        ctx.fill();
+
+        // Physics Math
+        const k = (2 * Math.PI) / params.l;
+        const omega = 2 * Math.PI * params.f;
+        const ampPx = params.a * 80; 
+        
+        const steps = 300; 
+        const startX = 50;
+        const endX = w - 50;
+        const dx = (endX - startX) / steps;
+
+        // Magnetic Field (B)
+        ctx.beginPath();
+        ctx.strokeStyle = C_B;
+        ctx.lineWidth = 2;
+        for (let i = 0; i <= steps; i++) {
+            const x = startX + i * dx;
+            const phase = k * (i * dx) - omega * time;
+            const val = Math.sin(phase);
+            const y = cy + (val * ampPx * 0.35); 
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // B Vectors
+        ctx.fillStyle = C_B;
+        for (let i = 0; i <= steps; i += 8) {
+            const x = startX + i * dx;
+            const phase = k * (i * dx) - omega * time;
+            const val = Math.sin(phase);
+            const y = cy + (val * ampPx * 0.35);
+            ctx.beginPath();
+            ctx.ellipse(x, y, 3, 1.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Electric Field (E)
+        ctx.beginPath();
+        ctx.strokeStyle = C_E;
+        ctx.lineWidth = 3;
+        for (let i = 0; i <= steps; i++) {
+            const x = startX + i * dx;
+            const phase = k * (i * dx) - omega * time;
+            const val = Math.sin(phase);
+            const y = cy - (val * ampPx);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // E Vectors
+        for (let i = 0; i <= steps; i += 6) {
+            const x = startX + i * dx;
+            const phase = k * (i * dx) - omega * time;
+            const val = Math.sin(phase);
+            const yEnd = cy - (val * ampPx);
+            if (Math.abs(val) > 0.1) {
+                ctx.beginPath();
+                ctx.strokeStyle = `rgba(217, 119, 87, ${Math.abs(val) * 0.4})`;
+                ctx.lineWidth = 1;
+                ctx.moveTo(x, cy);
+                ctx.lineTo(x, yEnd);
+                ctx.stroke();
+            }
+        }
+
+        // Labels
+        ctx.font = "bold 12px sans-serif";
+        ctx.fillStyle = C_E;
+        ctx.fillText("E", 20, cy - ampPx - 10);
+        ctx.fillStyle = C_B;
+        ctx.fillText("B", 20, cy + (ampPx * 0.35) + 15);
+    }
+
+    function loop() {
+        if (isPlaying) {
+            time += 0.03 * params.v;
+            draw();
+        }
+        animationId = requestAnimationFrame(loop);
+    }
+
+    const bindSlider = (id, paramKey, displayId, suffix) => {
+        const el = document.getElementById(id);
+        const disp = document.getElementById(displayId);
+        el.addEventListener('input', (e) => {
+            params[paramKey] = parseFloat(e.target.value);
+            disp.innerText = params[paramKey].toFixed(1) + suffix;
+            if (!isPlaying) draw();
+        });
+    };
+
+    bindSlider('freq', 'f', 'freqVal', ' Hz');
+    bindSlider('amp', 'a', 'ampVal', '');
+    bindSlider('lambda', 'l', 'lambdaVal', ' m');
+    bindSlider('speed', 'v', 'speedVal', ' c');
+
+    document.getElementById('playBtn').onclick = () => { isPlaying = true; };
+    document.getElementById('pauseBtn').onclick = () => { isPlaying = false; };
+    document.getElementById('resetBtn').onclick = () => { 
+        time = 0; 
+        isPlaying = false; 
+        draw(); 
+    };
+
+    setTimeout(() => { resize(); loop(); }, 100);
+</script>
+</body>
+</html>
