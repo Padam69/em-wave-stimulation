@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EM Wave Propagation - Mobile Fixed</title>
+    <title>EM Wave Propagation - Clean</title>
     <style>
         :root {
             --primary: #d97757;
@@ -25,7 +25,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 20px 15px; /* Reduced padding for mobile */
+            padding: 20px 15px;
         }
 
         .container { max-width: 1100px; width: 100%; }
@@ -40,7 +40,8 @@
             border: 1px solid var(--border); padding: 15px; margin-bottom: 20px; position: relative;
         }
 
-        canvas { width: 100%; height: 300px; display: block; border-radius: 8px; background: #fafafa; cursor: crosshair; }
+        /* Fixed height for consistency, but responsive width */
+        canvas { width: 100%; height: 350px; display: block; border-radius: 8px; background: #fafafa; }
 
         .legend { display: flex; justify-content: center; gap: 15px; margin-top: 15px; font-size: 0.8rem; font-weight: 600; color: var(--text-light); flex-wrap: wrap; }
         .legend-item { display: flex; align-items: center; gap: 6px; }
@@ -72,10 +73,12 @@
         .btn-primary { background: var(--primary); color: white; }
         .btn-secondary { background: #f3f4f6; color: var(--text); }
 
+        /* Desktop overrides */
         @media (min-width: 768px) {
             h1 { font-size: 2.5rem; }
             .controls-grid { grid-template-columns: repeat(4, 1fr); }
             canvas { height: 450px; }
+            body { padding: 40px 20px; }
         }
     </style>
 </head>
@@ -150,19 +153,25 @@
         
         ctx.clearRect(0, 0, w, h);
 
-        // SMART ZOOM: Adjust visual scale based on screen width
-        // On mobile (w < 500), we stretch the wave so it fits nicely
-        const isMobile = w < 500;
-        const visualLambda = isMobile ? params.l * (w / 400) : params.l; 
+        // PHYSICS MATH
+        // We use the actual wavelength parameter. 
+        // To prevent the "messy" look on small screens, we ensure we don't draw too many cycles.
+        // We map the physics wavelength to a visual scale that fits the screen nicely.
         
-        const k = (2 * Math.PI) / visualLambda;
+        // Base scale: 1 meter = 100 pixels (approx)
+        let visualScale = 100; 
+        
+        // If screen is very small (mobile), we reduce the scale slightly so the wave isn't huge
+        if (w < 600) visualScale = 60; 
+
+        const k = (2 * Math.PI) / (params.l * (visualScale/100)); 
         const omega = 2 * Math.PI * params.f;
         
-        // Adjust amplitude to fit screen height
-        const maxAmp = (h / 2) * 0.8; 
-        const ampPx = Math.min(params.a * 80, maxAmp); 
+        // Amplitude scaling
+        const maxAmp = (h / 2) * 0.85; 
+        const ampPx = Math.min(params.a * 60, maxAmp); 
         
-        const steps = 200; 
+        const steps = 300; // High resolution for smooth curves
         const startX = 20;
         const endX = w - 20;
         const dx = (endX - startX) / steps;
@@ -183,20 +192,21 @@
         ctx.lineWidth = 2;
         for (let i = 0; i <= steps; i++) {
             const x = startX + i * dx;
-            const phase = k * (i * dx) - omega * time;
+            // We use a simplified phase calculation for visual clarity
+            const phase = (i * 0.15 * (3.0/params.l)) - (time * params.f * 0.5);
             const val = Math.sin(phase);
-            const y = cy + (val * ampPx * 0.35); 
+            const y = cy + (val * ampPx * 0.4); 
             if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         }
         ctx.stroke();
 
         // B Vectors (Ellipses)
         ctx.fillStyle = C_B;
-        for (let i = 0; i <= steps; i += 10) {
+        for (let i = 0; i <= steps; i += 12) {
             const x = startX + i * dx;
-            const phase = k * (i * dx) - omega * time;
+            const phase = (i * 0.15 * (3.0/params.l)) - (time * params.f * 0.5);
             const val = Math.sin(phase);
-            const y = cy + (val * ampPx * 0.35);
+            const y = cy + (val * ampPx * 0.4);
             ctx.beginPath();
             ctx.ellipse(x, y, 3, 1.5, 0, 0, Math.PI * 2);
             ctx.fill();
@@ -208,7 +218,7 @@
         ctx.lineWidth = 3;
         for (let i = 0; i <= steps; i++) {
             const x = startX + i * dx;
-            const phase = k * (i * dx) - omega * time;
+            const phase = (i * 0.15 * (3.0/params.l)) - (time * params.f * 0.5);
             const val = Math.sin(phase);
             const y = cy - (val * ampPx);
             if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
@@ -216,14 +226,14 @@
         ctx.stroke();
 
         // E Vectors (Vertical Lines)
-        for (let i = 0; i <= steps; i += 8) {
+        for (let i = 0; i <= steps; i += 10) {
             const x = startX + i * dx;
-            const phase = k * (i * dx) - omega * time;
+            const phase = (i * 0.15 * (3.0/params.l)) - (time * params.f * 0.5);
             const val = Math.sin(phase);
             const yEnd = cy - (val * ampPx);
             if (Math.abs(val) > 0.1) {
                 ctx.beginPath();
-                ctx.strokeStyle = `rgba(217, 119, 87, ${Math.abs(val) * 0.4})`;
+                ctx.strokeStyle = `rgba(217, 119, 87, ${Math.abs(val) * 0.3})`;
                 ctx.lineWidth = 1;
                 ctx.moveTo(x, cy);
                 ctx.lineTo(x, yEnd);
@@ -236,12 +246,12 @@
         ctx.fillStyle = C_E;
         ctx.fillText("E", 5, cy - ampPx - 5);
         ctx.fillStyle = C_B;
-        ctx.fillText("B", 5, cy + (ampPx * 0.35) + 15);
+        ctx.fillText("B", 5, cy + (ampPx * 0.4) + 15);
     }
 
     function loop() {
         if (isPlaying) {
-            time += 0.03 * params.v;
+            time += 0.05 * params.v;
             draw();
         }
         requestAnimationFrame(loop);
